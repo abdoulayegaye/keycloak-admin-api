@@ -37,7 +37,7 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(SWAGGER_PATHS).permitAll()
-                .requestMatchers("/api/**").hasAuthority("ROLE_realm-admin")
+                .requestMatchers("/api/**").hasAnyAuthority("ROLE_admin", "ROLE_realm-admin")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

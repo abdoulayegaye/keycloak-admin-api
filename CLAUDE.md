@@ -44,7 +44,7 @@ Application Spring Boot 3.2 exposant une API REST qui encapsule le SDK `keycloak
 - `config/` — `KeycloakAdminConfig` crée le bean `Keycloak`, `KeycloakProperties` bind la config YAML, `SecurityConfig` configure JWT + RBAC
 - `exception/` — `GlobalExceptionHandler` centralise la gestion des erreurs (4xx/5xx) avec `ErrorResponse`
 
-**Sécurité :** Toutes les routes `/api/**` requièrent un JWT Bearer token avec le rôle `realm-admin` (extrait de `realm_access.roles` dans le token). Les routes Swagger sont publiques.
+**Sécurité :** Toutes les routes `/api/**` requièrent un JWT Bearer token avec le rôle `admin` **ou** `realm-admin` (extraits de `realm_access.roles` dans le token). L'utilisateur `admin` de Keycloak a le rôle `admin` (pas `realm-admin` qui est un rôle client de `realm-management`). Les routes Swagger sont publiques.
 
 ## Configuration
 
