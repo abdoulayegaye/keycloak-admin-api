@@ -52,6 +52,7 @@ Application Spring Boot 3.2 exposant une API REST qui encapsule le SDK `keycloak
 - Serveur sur le port **8090**
 - Keycloak sur **http://localhost:9090** (realm `master`, credentials `admin/admin`)
 - JWT issuer : `http://localhost:9090/realms/master`
+- Durée du token d'accès : **3600 secondes** (1 heure), configurée automatiquement par le service `keycloak-init` au démarrage via `kcadm.sh`
 
 Pour obtenir un token JWT :
 ```bash
