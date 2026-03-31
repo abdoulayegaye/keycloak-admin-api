@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Dépôt GitHub
+
+https://github.com/abdoulayegaye/keycloak-admin-api (public)
+
+Workflow Git :
+```bash
+git add <fichiers>
+git commit -m "message"
+git push
+```
+
 ## Commands
 
 ```bash
