@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "keycloak-administration": {
+      "source": "dauquangthanh/hanoi-rainbow",
+      "sourceType": "github",
+      "computedHash": "f2d09b4f4fd0ced095c82713bdab711257577291a2502a29143b3c3dd2b10cfa"
+    }
+  }
+}
