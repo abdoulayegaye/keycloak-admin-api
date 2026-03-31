@@ -34,15 +34,19 @@ mvn test -Dtest=NomDeLaClasse#nomDeLaMethode
 
 ## Architecture
 
-Application Spring Boot 3.2 exposant une API REST qui encapsule le SDK `keycloak-admin-client` pour administrer Keycloak.
+Application Spring Boot 3.2 exposant une API REST qui appelle l'Admin REST API de Keycloak via **OpenFeign** (branche `feature/openfeign`).
 
 **Layers :**
 - `controller/` — Points d'entrée REST (`/api/realms`, `/api/realms/{realm}/clients`, `/api/realms/{realm}/users`, `/api/realms/{realm}/roles`)
-- `service/` — Logique métier, utilise le bean `Keycloak` pour interagir avec l'API Admin Keycloak
-- `mapper/` — Conversion entre DTOs et représentations Keycloak (`RealmMapper`, `ClientMapper`, `UserMapper`, `RoleMapper`). Chaque mapper expose `toRepresentation(Request)` et `toResponse(Representation)` comme méthodes statiques. `UserMapper` expose aussi `toCredential(CredentialRequest)`.
-- `dto/request/` et `dto/response/` — Contrats d'API (validation `@Valid` sur les requêtes, les Response DTOs sont de simples JavaBeans sans logique de mapping)
-- `config/` — `KeycloakAdminConfig` crée le bean `Keycloak`, `KeycloakProperties` bind la config YAML, `SecurityConfig` configure JWT + RBAC
-- `exception/` — `GlobalExceptionHandler` centralise la gestion des erreurs (4xx/5xx) avec `ErrorResponse`
+- `service/` — Logique métier, délègue aux clients Feign
+- `client/` — Interfaces Feign (`RealmAdminClient`, `ClientAdminClient`, `UserAdminClient`, `RoleAdminClient`) appelant directement `GET/POST/PUT/DELETE /admin/realms/...`. Les POST create retournent `ResponseEntity<Void>` pour extraire l'ID depuis le header `Location`.
+- `dto/request/` et `dto/response/` — Contrats d'API, utilisés directement comme corps de requête/réponse Feign
+- `config/` — `KeycloakTokenManager` (token admin en cache via RestTemplate), `KeycloakFeignConfig` (intercepteur Bearer, sans `@Configuration`), `KeycloakProperties`, `SecurityConfig`
+- `exception/` — `GlobalExceptionHandler` gère `FeignException` (et ses sous-types `NotFound`, `Forbidden`) + validation
+
+**Branches :**
+- `main` — version avec `keycloak-admin-client` SDK + package `mapper/`
+- `feature/openfeign` — version OpenFeign sans SDK Keycloak, sans `mapper/`
 
 **Sécurité :** Toutes les routes `/api/**` requièrent un JWT Bearer token avec le rôle `admin` **ou** `realm-admin` (extraits de `realm_access.roles` dans le token). L'utilisateur `admin` de Keycloak a le rôle `admin` (pas `realm-admin` qui est un rôle client de `realm-management`). Les routes Swagger sont publiques.
 

@@ -1,61 +1,56 @@
 package com.archidemo.keycloak.service;
 
+import com.archidemo.keycloak.client.ClientAdminClient;
 import com.archidemo.keycloak.dto.request.ClientRequest;
 import com.archidemo.keycloak.dto.response.ClientResponse;
-import com.archidemo.keycloak.mapper.ClientMapper;
-import jakarta.ws.rs.core.Response;
-import org.keycloak.admin.client.CreatedResponseUtil;
-import org.keycloak.admin.client.Keycloak;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class ClientService {
 
     private static final Logger log = LoggerFactory.getLogger(ClientService.class);
 
-    @Autowired
-    private Keycloak keycloak;
+    private final ClientAdminClient clientClient;
+
+    public ClientService(ClientAdminClient clientClient) {
+        this.clientClient = clientClient;
+    }
 
     public List<ClientResponse> findAll(String realmName) {
-        return keycloak.realm(realmName).clients().findAll()
-                .stream()
-                .map(ClientMapper::toResponse)
-                .collect(Collectors.toList());
+        return clientClient.findAll(realmName);
     }
 
     public ClientResponse findById(String realmName, String id) {
-        return ClientMapper.toResponse(keycloak.realm(realmName).clients().get(id).toRepresentation());
+        return clientClient.findById(realmName, id);
     }
 
     public ClientResponse create(String realmName, ClientRequest request) {
-        try (Response response = keycloak.realm(realmName).clients().create(ClientMapper.toRepresentation(request))) {
-            String id = CreatedResponseUtil.getCreatedId(response);
-            log.info("Client créé dans le realm {} : {}", realmName, id);
-            return ClientMapper.toResponse(keycloak.realm(realmName).clients().get(id).toRepresentation());
-        }
+        ResponseEntity<Void> response = clientClient.create(realmName, request);
+        String id = extractIdFromLocation(response);
+        log.info("Client créé dans le realm {} : {}", realmName, id);
+        return clientClient.findById(realmName, id);
     }
 
     public ClientResponse update(String realmName, String id, ClientRequest request) {
-        var existing = keycloak.realm(realmName).clients().get(id).toRepresentation();
-        existing.setClientId(request.getClientId());
-        existing.setName(request.getName());
-        existing.setProtocol(request.getProtocol());
-        existing.setPublicClient(request.isPublicClient());
-        existing.setRedirectUris(request.getRedirectUris());
-        existing.setEnabled(request.isEnabled());
-        keycloak.realm(realmName).clients().get(id).update(existing);
+        clientClient.update(realmName, id, request);
         log.info("Client mis à jour dans le realm {} : {}", realmName, id);
-        return ClientMapper.toResponse(keycloak.realm(realmName).clients().get(id).toRepresentation());
+        return clientClient.findById(realmName, id);
     }
 
     public void delete(String realmName, String id) {
-        keycloak.realm(realmName).clients().get(id).remove();
+        clientClient.delete(realmName, id);
         log.info("Client supprimé du realm {} : {}", realmName, id);
+    }
+
+    private String extractIdFromLocation(ResponseEntity<Void> response) {
+        String location = response.getHeaders().getFirst(HttpHeaders.LOCATION);
+        if (location == null) throw new IllegalStateException("Location header absent dans la réponse Keycloak");
+        return location.substring(location.lastIndexOf('/') + 1);
     }
 }

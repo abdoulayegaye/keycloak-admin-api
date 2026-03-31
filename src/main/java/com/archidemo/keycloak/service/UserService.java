@@ -1,66 +1,71 @@
 package com.archidemo.keycloak.service;
 
+import com.archidemo.keycloak.client.UserAdminClient;
 import com.archidemo.keycloak.dto.request.CredentialRequest;
 import com.archidemo.keycloak.dto.request.UserRequest;
 import com.archidemo.keycloak.dto.response.UserResponse;
-import com.archidemo.keycloak.mapper.UserMapper;
-import jakarta.ws.rs.core.Response;
-import org.keycloak.admin.client.CreatedResponseUtil;
-import org.keycloak.admin.client.Keycloak;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 public class UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
-    @Autowired
-    private Keycloak keycloak;
+    private final UserAdminClient userClient;
+
+    public UserService(UserAdminClient userClient) {
+        this.userClient = userClient;
+    }
 
     public List<UserResponse> findAll(String realmName) {
-        return keycloak.realm(realmName).users().list()
-                .stream()
-                .map(UserMapper::toResponse)
-                .collect(Collectors.toList());
+        return userClient.findAll(realmName);
     }
 
     public UserResponse findById(String realmName, String userId) {
-        return UserMapper.toResponse(keycloak.realm(realmName).users().get(userId).toRepresentation());
+        return userClient.findById(realmName, userId);
     }
 
     public UserResponse create(String realmName, UserRequest request) {
-        try (Response response = keycloak.realm(realmName).users().create(UserMapper.toRepresentation(request))) {
-            String userId = CreatedResponseUtil.getCreatedId(response);
-            log.info("Utilisateur créé dans le realm {} : {}", realmName, userId);
-            return UserMapper.toResponse(keycloak.realm(realmName).users().get(userId).toRepresentation());
-        }
+        ResponseEntity<Void> response = userClient.create(realmName, request);
+        String userId = extractIdFromLocation(response);
+        log.info("Utilisateur créé dans le realm {} : {}", realmName, userId);
+        return userClient.findById(realmName, userId);
     }
 
     public UserResponse update(String realmName, String userId, UserRequest request) {
-        var existing = keycloak.realm(realmName).users().get(userId).toRepresentation();
-        existing.setUsername(request.getUsername());
-        existing.setEmail(request.getEmail());
-        existing.setFirstName(request.getFirstName());
-        existing.setLastName(request.getLastName());
-        existing.setEnabled(request.isEnabled());
-        keycloak.realm(realmName).users().get(userId).update(existing);
+        // On n'envoie pas les credentials lors d'un update pour ne pas les écraser
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", request.getUsername());
+        body.put("email", request.getEmail());
+        body.put("firstName", request.getFirstName());
+        body.put("lastName", request.getLastName());
+        body.put("enabled", request.isEnabled());
+        userClient.update(realmName, userId, body);
         log.info("Utilisateur mis à jour dans le realm {} : {}", realmName, userId);
-        return UserMapper.toResponse(keycloak.realm(realmName).users().get(userId).toRepresentation());
+        return userClient.findById(realmName, userId);
     }
 
     public void delete(String realmName, String userId) {
-        keycloak.realm(realmName).users().get(userId).remove();
+        userClient.delete(realmName, userId);
         log.info("Utilisateur supprimé du realm {} : {}", realmName, userId);
     }
 
     public void resetPassword(String realmName, String userId, CredentialRequest request) {
-        keycloak.realm(realmName).users().get(userId).resetPassword(UserMapper.toCredential(request));
+        userClient.resetPassword(realmName, userId, request);
         log.info("Mot de passe réinitialisé pour l'utilisateur {} dans le realm {}", userId, realmName);
+    }
+
+    private String extractIdFromLocation(ResponseEntity<Void> response) {
+        String location = response.getHeaders().getFirst(HttpHeaders.LOCATION);
+        if (location == null) throw new IllegalStateException("Location header absent dans la réponse Keycloak");
+        return location.substring(location.lastIndexOf('/') + 1);
     }
 }
